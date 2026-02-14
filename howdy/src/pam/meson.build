@@ -1,4 +1,4 @@
-inih_cpp = dependency('INIReader', fallback: ['inih', 'INIReader_dep'])
+inireader_dep = dependency('INIReader', required: true)
 libevdev = dependency('libevdev')
 libpam = meson.get_compiler('cpp').find_library('pam')
 threads = dependency('threads')
@@ -21,7 +21,7 @@ shared_library(
 	'enter_device.cc',
 	dependencies: [
 		libpam,
-		inih_cpp,
+		inireader_dep,
 		threads,
 		libevdev,
 	],
@@ -33,3 +33,4 @@ shared_library(
 	install_tag: 'pam_module',
 	name_prefix: ''
 )
+

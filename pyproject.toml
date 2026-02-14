@@ -7,8 +7,12 @@ requires-python = ">=3.9"
 readme = "README.md"
 
 [build-system]
-build-backend = "mesonbuild.mesonpy"
-requires = ["meson-python"]
+requires = [
+    "meson-python>=0.13",
+    "meson>=1.2",
+    "ninja"
+]
+build-backend = "mesonpy"
 
 [tool.mypy]
 python_version = "3.12"

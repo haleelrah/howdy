@@ -1,4 +1,4 @@
-project('howdy', 'cpp', license: 'MIT', version: 'beta', meson_version: '>= 0.64.0')
+project('howdy', 'cpp', license: 'MIT', version: 'beta', meson_version: '>= 0.64.0', default_options: ['cpp_std=c++20'])
 
 dlibdatadir = get_option('dlib_data_dir') != '' ? get_option('dlib_data_dir') : join_paths(get_option('prefix'), get_option('datadir'), 'dlib-data')
 confdir = get_option('config_dir') != '' ? get_option('config_dir') : join_paths(get_option('prefix'), get_option('sysconfdir'), 'howdy')
