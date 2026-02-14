@@ -1,12 +1,12 @@
 # CLI directly called by running the howdy command
 
 # Import required modules
-import sys
-import os
-import pwd
-import getpass
 import argparse
 import builtins
+import getpass
+import os
+import pwd
+import sys
 
 from i18n import _
 

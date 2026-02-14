@@ -2,10 +2,10 @@
 
 # Import required modules
 import os
-import subprocess
 import shutil
-import paths_factory
+import subprocess
 
+import paths_factory
 from i18n import _
 
 # Determine the editor to use

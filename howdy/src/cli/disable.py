@@ -1,13 +1,13 @@
 # Set the disable flag
+from __future__ import annotations
+
+import builtins
+import configparser
 
 # Import required modules
 import sys
-import os
-import builtins
-import fileinput
-import configparser
-import paths_factory
 
+import paths_factory
 from i18n import _
 
 # Get the absolute filepath
@@ -40,9 +40,10 @@ if out_value == config.get("core", "disabled", fallback=True):
 	print(_("The disable option has already been set to ") + out_value)
 	sys.exit(1)
 
-# Loop though the config file and only replace the line containing the disable config
-for line in fileinput.input([config_path], inplace=1):
-	print(line.replace("disabled = " + config.get("core", "disabled", fallback=True), "disabled = " + out_value), end="")
+# Update the config value and write it back
+config.set("core", "disabled", out_value)
+with open(config_path, "w") as f:
+	config.write(f)
 
 # Print what we just did
 if out_value == "true":

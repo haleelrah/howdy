@@ -1,13 +1,17 @@
 # Opens and controls main ui window
-import gi
-import signal
-import sys
-import os
-import elevate
-import subprocess
+from __future__ import annotations
 
-from i18n import _
+import os
+import signal
+import subprocess
+import sys
+from typing import Any
+
+import elevate
+import gi
+
 import paths_factory
+from i18n import _
 
 # Make sure we have the libs we need
 gi.require_version("Gtk", "3.0")
@@ -18,7 +22,7 @@ from gi.repository import Gtk as gtk
 
 
 class MainWindow(gtk.Window):
-	def __init__(self):
+	def __init__(self) -> None:
 		"""Initialize the sticky window"""
 		# Make the class a GTK window
 		gtk.Window.__init__(self)
@@ -69,7 +73,7 @@ class MainWindow(gtk.Window):
 		# Start GTK main loop
 		gtk.main()
 
-	def load_model_list(self):
+	def load_model_list(self) -> None:
 		"""(Re)load the model list"""
 
 		# Get username and default to none if there are no models at all yet
@@ -77,7 +81,9 @@ class MainWindow(gtk.Window):
 		if self.active_user: user = self.active_user
 
 		# Execute the list command to get the models
-		status, output = subprocess.getstatusoutput(["howdy list --plain -U " + user])
+		result = subprocess.run(["howdy", "list", "--plain", "-U", user], capture_output=True, text=True)
+		status = result.returncode
+		output = result.stdout + result.stderr
 
 		# Create a datamodel
 		self.listmodel = gtk.ListStore(str, str, str)
@@ -95,17 +101,17 @@ class MainWindow(gtk.Window):
 
 		self.treeview.set_model(self.listmodel)
 
-	def on_about_link(self, label, uri):
+	def on_about_link(self, label: Any, uri: str) -> bool:
 		"""Open links on about page as a non-root user"""
 		try:
 			user = os.getlogin()
 		except Exception:
 			user = os.environ.get("SUDO_USER")
 
-		status, output = subprocess.getstatusoutput(["sudo -u " + user + " timeout 10 xdg-open " + uri])
+		subprocess.run(["sudo", "-u", user, "timeout", "10", "xdg-open", uri], capture_output=True, text=True)
 		return True
 
-	def exit(self, widget=None, context=None):
+	def exit(self, widget: Any = None, context: Any = None) -> None:
 		"""Cleanly exit"""
 		if self.capture is not None:
 			self.capture.release()
@@ -129,11 +135,13 @@ if "--force-onboarding" in sys.argv or not os.path.exists(paths_factory.user_mod
 
 # Class is split so it isn't too long, import split functions
 import tab_models
+
 MainWindow.on_user_add = tab_models.on_user_add
 MainWindow.on_user_change = tab_models.on_user_change
 MainWindow.on_model_add = tab_models.on_model_add
 MainWindow.on_model_delete = tab_models.on_model_delete
 import tab_video
+
 MainWindow.on_page_switch = tab_video.on_page_switch
 MainWindow.capture_frame = tab_video.capture_frame
 

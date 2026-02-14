@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 
 from i18n import _
@@ -7,12 +9,12 @@ from rubberstamps import RubberStamp
 
 
 class nod(RubberStamp):
-	def declare_config(self):
+	def declare_config(self) -> None:
 		"""Set the default values for the optional arguments"""
 		self.options["min_distance"] = 6
 		self.options["min_directions"] = 2
 
-	def run(self):
+	def run(self) -> bool:
 		"""Track a users nose to see if they nod yes or no"""
 		self.set_ui_text(_("Nod to confirm"), self.UI_TEXT)
 		self.set_ui_text(_("Shake your head to abort"), self.UI_SUBTEXT)

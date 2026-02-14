@@ -1,5 +1,6 @@
 # Compare incoming video with known faces
 # Running in a local python instance to get around PATH issues
+from __future__ import annotations
 
 # Import time so we can start timing asap
 import time
@@ -10,23 +11,25 @@ timings = {
 }
 
 # Import required modules
-import sys
-import os
-import json
-import configparser
-import dlib
-import cv2
-from datetime import timezone, datetime
 import atexit
+import configparser
+import json
+import os
 import subprocess
-import snapshot
-import numpy as np
-import _thread as thread
-import paths_factory
-from recorders.video_capture import VideoCapture
-from i18n import _
+import sys
+import threading
+from datetime import datetime, timezone
 
-def exit(code=None):
+import cv2
+import numpy as np
+
+import paths_factory
+import snapshot
+from i18n import _
+from recorders.video_capture import VideoCapture
+
+
+def exit(code: int | None = None) -> None:
 	"""Exit while closing howdy-gtk properly"""
 	global gtk_proc
 
@@ -39,34 +42,26 @@ def exit(code=None):
 		sys.exit(code)
 
 
-def init_detector(lock):
+def init_detector(lock: threading.Lock) -> None:
 	"""Start face detector, encoder and predictor in a new thread"""
-	global face_detector, pose_predictor, face_encoder
+	global backend
 
-	# Test if at lest 1 of the data files is there and abort if it's not
-	if not os.path.isfile(paths_factory.shape_predictor_5_face_landmarks_path()):
+	try:
+		from recog import create_backend
+		backend = create_backend(use_cnn=use_cnn)
+	except FileNotFoundError:
 		print(_("Data files have not been downloaded, please run the following commands:"))
 		print("\n\tcd " + paths_factory.dlib_data_dir_path())
 		print("\tsudo ./install.sh\n")
 		lock.release()
 		exit(1)
 
-	# Use the CNN detector if enabled
-	if use_cnn:
-		face_detector = dlib.cnn_face_detection_model_v1(paths_factory.mmod_human_face_detector_path())
-	else:
-		face_detector = dlib.get_frontal_face_detector()
-
-	# Start the others regardless
-	pose_predictor = dlib.shape_predictor(paths_factory.shape_predictor_5_face_landmarks_path())
-	face_encoder = dlib.face_recognition_model_v1(paths_factory.dlib_face_recognition_resnet_model_v1_path())
-
 	# Note the time it took to initialize detectors
 	timings["ll"] = time.time() - timings["ll"]
 	lock.release()
 
 
-def make_snapshot(type):
+def make_snapshot(type: str) -> None:
 	"""Generate snapshot after detection"""
 	snapshot.generate(snapframes, [
 		type + _(" LOGIN"),
@@ -78,7 +73,7 @@ def make_snapshot(type):
 	])
 
 
-def send_to_ui(type, message):
+def send_to_ui(type: str, message: str) -> None:
 	"""Send message to the auth ui"""
 	global gtk_proc
 
@@ -116,14 +111,13 @@ frames = 0
 snapframes = []
 # Tracks the lowest certainty value in the loop
 lowest_certainty = 10
-# Face recognition/detection instances
-face_detector = None
-pose_predictor = None
-face_encoder = None
+# Face recognition/detection backend
+backend = None
 
 # Try to load the face model from the models folder
 try:
-	models = json.load(open(paths_factory.user_model_path(user)))
+	with open(paths_factory.user_model_path(user)) as f:
+		models = json.load(f)
 
 	for model in models:
 		encodings += model["data"]
@@ -169,9 +163,9 @@ timings["in"] = time.time() - timings["st"]
 timings["ll"] = time.time()
 
 # Start threading and wait for init to finish
-lock = thread.allocate_lock()
+lock = threading.Lock()
 lock.acquire()
-thread.start_new_thread(init_detector, (lock, ))
+threading.Thread(target=init_detector, args=(lock,), daemon=True).start()
 
 # Start video capture on the IR camera
 timings["ic"] = time.time()
@@ -299,15 +293,12 @@ while True:
 
 	# Get all faces from that frame as encodings
 	# Upsamples 1 time
-	face_locations = face_detector(gsframe, 1)
+	face_locations = backend.detect_faces(gsframe, 1)
 	# Loop through each face
 	for fl in face_locations:
-		if use_cnn:
-			fl = fl.rect
-
 		# Fetch the faces in the image
-		face_landmark = pose_predictor(frame, fl)
-		face_encoding = np.array(face_encoder.compute_face_descriptor(frame, face_landmark, 1))
+		face_landmark = backend.get_landmarks(frame, fl)
+		face_encoding = backend.compute_encoding(frame, face_landmark, 1)
 
 		# Match this found face against a known face
 		matches = np.linalg.norm(encodings - face_encoding, axis=1)
@@ -370,8 +361,7 @@ while True:
 
 				rubberstamps.execute(config, gtk_proc, {
 					"video_capture": video_capture,
-					"face_detector": face_detector,
-					"pose_predictor": pose_predictor,
+					"backend": backend,
 					"clahe": clahe
 				})
 

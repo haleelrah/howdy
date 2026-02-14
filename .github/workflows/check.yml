@@ -7,16 +7,16 @@ jobs:
     steps:
       - name: Install required libraries
         run: >
-          sudo apt-get update && sudo apt-get install -y 
+          sudo apt-get update && sudo apt-get install -y
           python3 python3-pip python3-setuptools python3-wheel
           cmake make build-essential clang-tidy
-          libpam0g-dev libinih-dev libevdev-dev 
+          libpam0g-dev libinih-dev libevdev-dev
           python3-dev libopencv-dev
-        
+
       - name: Install meson
         run: sudo python3 -m pip install meson ninja
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Build
         run: |
@@ -26,3 +26,27 @@ jobs:
       - name: Check source code
         run: |
           ninja clang-tidy -C build
+
+  python-lint:
+    runs-on: ubuntu-latest
+    container: fedora:41
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        run: dnf install -y python3.12 python3-pip
+      - name: Install tools
+        run: pip3 install ruff
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+      - name: Import / syntax test
+        run: python3.12 -c "
+          import py_compile, glob, sys;
+          files = glob.glob('howdy/src/**/*.py', recursive=True)
+               + glob.glob('howdy-gtk/src/**/*.py', recursive=True);
+          errors = [];
+          [errors.append(f) for f in files
+           if not (py_compile.compile(f, doraise=False))];
+          sys.exit(1) if errors else None
+          "

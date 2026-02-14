@@ -1,0 +1,57 @@
+[project]
+name = "howdy"
+version = "3.0.0b0"
+description = "Facial authentication for Linux"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+readme = "README.md"
+
+[build-system]
+build-backend = "mesonbuild.mesonpy"
+requires = ["meson-python"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+
+# -- Ruff (linter + formatter) ------------------------------------------------
+# Docs: https://docs.astral.sh/ruff/configuration/
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+# Only lint the Python source trees; ignore vendored / generated files.
+include = ["howdy/src/**/*.py", "howdy-gtk/src/**/*.py"]
+
+[tool.ruff.format]
+indent-style = "tab"
+quote-style = "double"
+line-ending = "lf"
+
+[tool.ruff.lint]
+# F  = Pyflakes  (unused imports, undefined names — real bugs)
+# E4 = import-related whitespace
+# E9 = runtime errors (syntax errors, etc.)
+# W6 = deprecated features
+# I  = isort (import ordering)
+select = ["F", "E4", "E9", "W6", "I"]
+
+# Per-file ignores for intentional patterns:
+[tool.ruff.lint.per-file-ignores]
+# Side-effect imports: these modules execute on import (entry-points).
+"howdy/src/cli.py" = ["F401"]
+"howdy-gtk/src/init.py" = ["F401"]
+# Scripts with top-level code interleaved with imports (intentional).
+"howdy/src/compare.py" = ["E402"]
+"howdy/src/cli/add.py" = ["E402"]
+"howdy/src/cli/test.py" = ["E402"]
+# GTK files call gi.require_version() before gi.repository imports.
+"howdy-gtk/src/authsticky.py" = ["E402"]
+"howdy-gtk/src/onboarding.py" = ["E402"]
+"howdy-gtk/src/window.py" = ["E402"]
+# pyv4l2 has device probe code between imports (intentional).
+"howdy/src/recorders/pyv4l2_reader.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["recog", "recorders", "rubberstamps", "paths_factory", "i18n", "snapshot", "cli"]

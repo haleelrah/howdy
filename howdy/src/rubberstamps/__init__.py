@@ -1,10 +1,15 @@
-import sys
+from __future__ import annotations
+
+import configparser
+import importlib.util
 import os
 import re
+import subprocess
+import sys
+import traceback
+from typing import Any
 
 from i18n import _
-
-from importlib.machinery import SourceFileLoader
 
 
 class RubberStamp:
@@ -13,7 +18,7 @@ class RubberStamp:
 	UI_TEXT = "ui_text"
 	UI_SUBTEXT = "ui_subtext"
 
-	def set_ui_text(self, text, type=None):
+	def set_ui_text(self, text: str, type: str | None = None) -> None:
 		"""Convert an ui string to input howdy-gtk understands"""
 		typedec = "M"
 
@@ -22,7 +27,7 @@ class RubberStamp:
 
 		return self.send_ui_raw(typedec + "=" + text)
 
-	def send_ui_raw(self, command):
+	def send_ui_raw(self, command: str) -> None:
 		"""Write raw command to howdy-gtk stdin"""
 		if self.config.getboolean("debug", "verbose_stamps", fallback=False):
 			print("Sending command to howdy-gtk: " + command)
@@ -41,7 +46,7 @@ class RubberStamp:
 			self.gtk_proc.stdin.flush()
 
 
-def execute(config, gtk_proc, opencv):
+def execute(config: configparser.ConfigParser, gtk_proc: subprocess.Popen | None, opencv: dict[str, Any]) -> None:
 	verbose = config.getboolean("debug", "verbose_stamps", fallback=False)
 	dir_path = os.path.dirname(os.path.realpath(__file__))
 	installed_stamps = []
@@ -73,7 +78,7 @@ def execute(config, gtk_proc, opencv):
 			continue
 
 		# Parse the rule with regex
-		regex_result = re.search("^(\w+)\s+([\w\.]+)\s+([a-z]+)(.*)?$", rule, re.IGNORECASE)
+		regex_result = re.search(r"^(\w+)\s+([\w\.]+)\s+([a-z]+)(.*)?$", rule, re.IGNORECASE)
 
 		# Error out if the regex did not match (invalid line)
 		if not regex_result:
@@ -88,7 +93,9 @@ def execute(config, gtk_proc, opencv):
 			continue
 
 		# Load the module from file
-		module = SourceFileLoader(type, dir_path + "/" + type + ".py").load_module()
+		spec = importlib.util.spec_from_file_location(type, dir_path + "/" + type + ".py")
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
 
 		# Try to get the class with the same name
 		try:
@@ -106,8 +113,9 @@ def execute(config, gtk_proc, opencv):
 
 		# Set some opensv shorthands
 		instance.video_capture = opencv["video_capture"]
-		instance.face_detector = opencv["face_detector"]
-		instance.pose_predictor = opencv["pose_predictor"]
+		instance.backend = opencv["backend"]
+		instance.face_detector = opencv["backend"].detect_faces
+		instance.pose_predictor = opencv["backend"].get_landmarks
 		instance.clahe = opencv["clahe"]
 
 		# Parse and set the 2 required options for all rubberstamps
@@ -122,7 +130,6 @@ def execute(config, gtk_proc, opencv):
 		except Exception:
 			print(_("Internal error in rubberstamp configuration declaration:"))
 
-			import traceback
 			traceback.print_exc()
 			continue
 
@@ -161,7 +168,6 @@ def execute(config, gtk_proc, opencv):
 		except Exception:
 			print(_("Internal error in rubberstamp:"))
 
-			import traceback
 			traceback.print_exc()
 			continue
 

@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import subprocess
-import time
+from typing import Any
+
+from gi.repository import GObject as gobject
+from gi.repository import Gtk as gtk
 
 from i18n import _
-from gi.repository import Gtk as gtk
-from gi.repository import GObject as gobject
 
 
-def on_user_change(self, select):
+def on_user_change(self: Any, select: Any) -> None:
 	self.active_user = select.get_active_text()
 	self.load_model_list()
 
 
-def on_user_add(self, button):
+def on_user_add(self: Any, button: Any) -> None:
 	# Open question dialog
 	dialog = gtk.MessageDialog(parent=self, flags=gtk.DialogFlags.MODAL, type=gtk.MessageType.QUESTION, buttons=gtk.ButtonsType.OK_CANCEL)
 	dialog.set_title(_("Confirm User Creation"))
@@ -44,7 +47,7 @@ def on_user_add(self, button):
 		self.load_model_list()
 
 
-def on_model_add(self, button):
+def on_model_add(self: Any, button: Any) -> None:
 	if self.userlist.items == 0:
 		return
 	# Open question dialog
@@ -80,9 +83,11 @@ def on_model_add(self, button):
 		gobject.timeout_add(600, lambda: execute_add(self, dialog, entered_name))
 
 
-def execute_add(box, dialog, entered_name):
+def execute_add(box: Any, dialog: Any, entered_name: str) -> None:
 
-	status, output = subprocess.getstatusoutput(["howdy add '" + entered_name + "' -y -U " + box.active_user])
+	result = subprocess.run(["howdy", "add", entered_name, "-y", "-U", box.active_user], capture_output=True, text=True)
+	status = result.returncode
+	output = result.stdout + result.stderr
 
 	dialog.destroy()
 
@@ -96,7 +101,7 @@ def execute_add(box, dialog, entered_name):
 
 	box.load_model_list()
 
-def on_model_delete(self, button):
+def on_model_delete(self: Any, button: Any) -> None:
 	selection = self.treeview.get_selection()
 	(listmodel, rowlist) = selection.get_selected_rows()
 
@@ -111,7 +116,9 @@ def on_model_delete(self, button):
 		dialog.destroy()
 
 		if response == gtk.ResponseType.OK:
-			status, output = subprocess.getstatusoutput(["howdy remove " + id + " -y -U " + self.active_user])
+			result = subprocess.run(["howdy", "remove", id, "-y", "-U", self.active_user], capture_output=True, text=True)
+			status = result.returncode
+			output = result.stdout + result.stderr
 
 			if status != 0:
 				dialog = gtk.MessageDialog(parent=self, flags=gtk.DialogFlags.MODAL, type=gtk.MessageType.ERROR, buttons=gtk.ButtonsType.CLOSE)

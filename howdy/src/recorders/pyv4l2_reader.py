@@ -1,19 +1,33 @@
 # Class that simulates the functionality of opencv so howdy can use v4l2 devices seamlessly
+# DEPRECATED: The pyv4l2 package is unmaintained and unavailable for Python 3.12+.
+# Consider using the default opencv recording plugin instead.
+from __future__ import annotations
 
 # Import required modules. lib4l-dev package is also required.
 import fcntl
-import numpy
 import sys
+import warnings
+from typing import Any
 
-from recorders import v4l2
-from cv2 import cvtColor, COLOR_GRAY2BGR, CAP_PROP_FRAME_WIDTH, CAP_PROP_FRAME_HEIGHT
+import numpy
+from cv2 import CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, COLOR_GRAY2BGR, cvtColor
+
 from i18n import _
+from recorders import v4l2
+
+warnings.warn(
+	"The pyv4l2 recording plugin is deprecated. The pyv4l2 package is unmaintained "
+	"and unavailable for Python 3.12+. Please switch to the default 'opencv' recording plugin.",
+	DeprecationWarning,
+	stacklevel=2
+)
 
 try:
 	from pyv4l2.frame import Frame
 except ImportError:
 	print(_("Missing pyv4l2 module, please run:"))
-	print(" pip3 install pyv4l2\n")
+	print(" pip3 install pyv4l2")
+	print(_("Note: pyv4l2 is unmaintained and may not work with Python 3.12+"))
 	sys.exit(13)
 
 
@@ -21,7 +35,7 @@ class pyv4l2_reader:
 	""" This class was created to look as similar to the openCV features used in Howdy as possible for overall code cleanliness. """
 
 	# Init
-	def __init__(self, device_name, device_format):
+	def __init__(self, device_name: str, device_format: str) -> None:
 		self.device_name = device_name
 		self.device_format = device_format
 		self.height = 0
@@ -29,21 +43,21 @@ class pyv4l2_reader:
 		self.probe()
 		self.frame = ""
 
-	def set(self, prop, setting):
+	def set(self, prop: int, setting: Any) -> None:
 		""" Setter method for height and width """
 		if prop == CAP_PROP_FRAME_WIDTH:
 			self.width = setting
 		elif prop == CAP_PROP_FRAME_HEIGHT:
 			self.height = setting
 
-	def get(self, prop):
+	def get(self, prop: int) -> int:
 		""" Getter method for height and width """
 		if prop == CAP_PROP_FRAME_WIDTH:
 			return self.width
 		elif prop == CAP_PROP_FRAME_HEIGHT:
 			return self.height
 
-	def probe(self):
+	def probe(self) -> None:
 		""" Probe the video device to get height and width info """
 
 		vd = open(self.device_name, 'r')
@@ -67,15 +81,15 @@ class pyv4l2_reader:
 		if self.get(CAP_PROP_FRAME_WIDTH) == 0:
 			self.set(CAP_PROP_FRAME_WIDTH, int(width))
 
-	def record(self):
+	def record(self) -> None:
 		""" Start recording """
 		self.frame = Frame(self.device_name)
 
-	def grab(self):
+	def grab(self) -> None:
 		""" Read a single frame from the IR camera. """
 		self.read()
 
-	def read(self):
+	def read(self) -> tuple[int, Any]:
 		""" Read a single frame from the IR camera. """
 
 		if not self.frame:
@@ -96,7 +110,7 @@ class pyv4l2_reader:
 		# Return a single frame of video
 		return 0, img2
 
-	def release(self):
+	def release(self) -> None:
 		""" Empty our array. If we had a hold on the camera, we would give it back here. """
 		self.video = ()
 		self.num_frames_read = 0

@@ -1,16 +1,21 @@
 # Set a config value
+from __future__ import annotations
+
+import builtins
+import configparser
 
 # Import required modules
 import sys
-import os
-import builtins
-import fileinput
-import paths_factory
 
+import paths_factory
 from i18n import _
 
 # Get the absolute filepath
 config_path = paths_factory.config_file_path()
+
+# Read config from disk
+config = configparser.ConfigParser()
+config.read(config_path)
 
 # Check if enough arguments have been passed
 if len(builtins.howdy_args.arguments) < 2:
@@ -23,22 +28,21 @@ if len(builtins.howdy_args.arguments) < 2:
 set_name = builtins.howdy_args.arguments[0]
 set_value = builtins.howdy_args.arguments[1]
 
-# Will be filled with the correctly config line to update
-found_line = ""
+# Search for the option across all sections
+found_section = None
+for section in config.sections():
+	if config.has_option(section, set_name):
+		found_section = section
+		break
 
-# Loop through all lines in the config file
-for line in fileinput.input([config_path]):
-	# Save the line if it starts with the requested config option
-	if line.startswith(set_name + " "):
-		found_line = line
-
-# If we don't have the line it is not in the config file
-if not found_line:
+# If we don't have the option it is not in the config file
+if not found_section:
 	print(_('Could not find a "{}" config option to set').format(set_name))
 	sys.exit(1)
 
-# Go through the file again and update the correct line
-for line in fileinput.input([config_path], inplace=1):
-	print(line.replace(found_line, set_name + " = " + set_value + "\n"), end="")
+# Update the config value and write it back
+config.set(found_section, set_name, set_value)
+with open(config_path, "w") as f:
+	config.write(f)
 
 print(_("Config option updated"))

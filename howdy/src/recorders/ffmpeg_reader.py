@@ -1,13 +1,15 @@
 # Class that simulates the functionality of opencv so howdy can use ffmpeg seamlessly
+from __future__ import annotations
+
+import re
+import sys
+from subprocess import PIPE, Popen
+from typing import Any
 
 # Import required modules
 import numpy
-import sys
-import re
+from cv2 import CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH
 
-from subprocess import Popen, PIPE
-from cv2 import CAP_PROP_FRAME_WIDTH
-from cv2 import CAP_PROP_FRAME_HEIGHT
 from i18n import _
 
 try:
@@ -21,7 +23,7 @@ except ImportError:
 class ffmpeg_reader:
 	""" This class was created to look as similar to the openCV features used in Howdy as possible for overall code cleanliness. """
 
-	def __init__(self, device_path, device_format, numframes=10):
+	def __init__(self, device_path: str, device_format: str, numframes: int = 10) -> None:
 		self.device_path = device_path
 		self.device_format = device_format
 		self.numframes = numframes
@@ -31,21 +33,21 @@ class ffmpeg_reader:
 		self.width = 0
 		self.init_camera = True
 
-	def set(self, prop, setting):
+	def set(self, prop: int, setting: Any) -> None:
 		""" Setter method for height and width """
 		if prop == CAP_PROP_FRAME_WIDTH:
 			self.width = setting
 		elif prop == CAP_PROP_FRAME_HEIGHT:
 			self.height = setting
 
-	def get(self, prop):
+	def get(self, prop: int) -> int:
 		""" Getter method for height and width """
 		if prop == CAP_PROP_FRAME_WIDTH:
 			return self.width
 		elif prop == CAP_PROP_FRAME_HEIGHT:
 			return self.height
 
-	def probe(self):
+	def probe(self) -> None:
 		""" Probe the video device to get height and width info """
 
 		# Running this command on ffmpeg unfortunately returns with an exit code of 1, which is silly.
@@ -73,7 +75,7 @@ class ffmpeg_reader:
 		if width.isdigit() and self.get(CAP_PROP_FRAME_WIDTH) == 0:
 			self.set(CAP_PROP_FRAME_WIDTH, int(width))
 
-	def record(self, numframes):
+	def record(self, numframes: int) -> None:
 		""" Record a video, saving it to self.video array for processing later """
 
 		# Eensure we have set our width and height before we record, otherwise our numpy call will fail
@@ -96,7 +98,7 @@ class ffmpeg_reader:
 			.reshape([-1, self.width, self.height, 3])
 		)
 
-	def read(self):
+	def read(self) -> tuple[int, Any]:
 		""" Read a single frame from the self.video array. Will record a video if array is empty. """
 
 		# First time we are called, we want to initialize the camera by probing it, to ensure we have height/width
@@ -124,11 +126,11 @@ class ffmpeg_reader:
 		# Return a single frame of video
 		return 0, self.video[self.num_frames_read]
 
-	def release(self):
+	def release(self) -> None:
 		""" Empty our array. If we had a hold on the camera, we would give it back here. """
 		self.video = ()
 		self.num_frames_read = 0
 
-	def grab(self):
+	def grab(self) -> None:
 		""" Redirect grab() to read() for compatibility """
 		self.read()

@@ -1,17 +1,19 @@
 # Show a window with the video stream and testing information
+from __future__ import annotations
+
+import builtins
 
 # Import required modules
 import configparser
-import builtins
-import os
 import json
 import sys
 import time
-import dlib
+from typing import Any
+
 import cv2
 import numpy as np
-import paths_factory
 
+import paths_factory
 from i18n import _
 from recorders.video_capture import VideoCapture
 
@@ -39,7 +41,7 @@ Click on the image to enable or disable slow mode
 """))
 
 
-def mouse(event, x, y, flags, param):
+def mouse(event: int, x: int, y: int, flags: int, param: Any) -> None:
 	"""Handle mouse events"""
 	global slow_mode
 
@@ -48,29 +50,24 @@ def mouse(event, x, y, flags, param):
 		slow_mode = not slow_mode
 
 
-def print_text(line_number, text):
+def print_text(line_number: int, text: str) -> None:
 	"""Print the status text by line number"""
 	cv2.putText(overlay, text, (10, height - 10 - (10 * line_number)), cv2.FONT_HERSHEY_SIMPLEX, .3, (0, 255, 0), 0, cv2.LINE_AA)
 
 
 use_cnn = config.getboolean('core', 'use_cnn', fallback=False)
 
-if use_cnn:
-	face_detector = dlib.cnn_face_detection_model_v1(
-		paths_factory.mmod_human_face_detector_path()
-	)
-else:
-	face_detector = dlib.get_frontal_face_detector()
+from recog import create_backend
 
-pose_predictor = dlib.shape_predictor(paths_factory.shape_predictor_5_face_landmarks_path())
-face_encoder = dlib.face_recognition_model_v1(paths_factory.dlib_face_recognition_resnet_model_v1_path())
+backend = create_backend(use_cnn=use_cnn)
 
 encodings = []
 models = None
 
 try:
 	user = builtins.howdy_user
-	models = json.load(open(paths_factory.user_model_path(user)))
+	with open(paths_factory.user_model_path(user)) as f:
+		models = json.load(f)
 
 	for model in models:
 		encodings += model["data"]
@@ -166,14 +163,11 @@ try:
 
 			# Get the locations of all faces and their locations
 			# Upsample it once
-			face_locations = face_detector(frame, 1)
+			face_locations = backend.detect_faces(frame, 1)
 			rec_tm = time.time() - rec_tm
 
 			# Loop though all faces and paint a circle around them
 			for loc in face_locations:
-				if use_cnn:
-					loc = loc.rect
-
 				# By default the circle around the face is red for no match
 				color = (0, 0, 230)
 
@@ -189,8 +183,8 @@ try:
 				# If we have models defined for the current user
 				if models:
 					# Get the encoding of the face in the frame
-					face_landmark = pose_predictor(orig_frame, loc)
-					face_encoding = np.array(face_encoder.compute_face_descriptor(orig_frame, face_landmark, 1))
+					face_landmark = backend.get_landmarks(orig_frame, loc)
+					face_encoding = backend.compute_encoding(orig_frame, face_landmark, 1)
 
 					# Match this found face against a known face
 					matches = np.linalg.norm(encodings - face_encoding, axis=1)

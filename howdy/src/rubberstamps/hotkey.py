@@ -1,5 +1,7 @@
-import time
+from __future__ import annotations
+
 import sys
+import time
 
 from i18n import _
 
@@ -10,12 +12,12 @@ from rubberstamps import RubberStamp
 class hotkey(RubberStamp):
 	pressed_key = "none"
 
-	def declare_config(self):
+	def declare_config(self) -> None:
 		"""Set the default values for the optional arguments"""
 		self.options["abort_key"] = "esc"
 		self.options["confirm_key"] = "enter"
 
-	def run(self):
+	def run(self) -> bool:
 		"""Wait for the user to press a hotkey"""
 		time_left = self.options["timeout"]
 		time_string = _("Aborting authorisation in {}") if self.options["failsafe"] else _("Authorising in {}")
@@ -27,7 +29,7 @@ class hotkey(RubberStamp):
 		# Try to import the keyboard module and tell the user to install the module if that fails
 		try:
 			import keyboard
-		except Exception:
+		except ImportError:
 			print("\nMissing module for rubber stamp keyboard!")
 			print("Please run:")
 			print("\t pip3 install keyboard")
@@ -64,6 +66,6 @@ class hotkey(RubberStamp):
 		# When our timeout hits, either abort or continue based on failsafe of faildeadly
 		return not self.options["failsafe"]
 
-	def on_key(self, type):
+	def on_key(self, type: str) -> None:
 		"""Called when the user presses a key"""
 		self.pressed_key = type

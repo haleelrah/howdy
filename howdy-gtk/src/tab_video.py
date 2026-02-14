@@ -1,24 +1,27 @@
+from __future__ import annotations
+
 import configparser
+from typing import Any
 
-from i18n import _
-import paths_factory
-
-from gi.repository import Gtk as gtk
 from gi.repository import Gdk as gdk
 from gi.repository import GdkPixbuf as pixbuf
 from gi.repository import GObject as gobject
+from gi.repository import Gtk as gtk
+
+import paths_factory
+from i18n import _
 
 MAX_HEIGHT = 300
 MAX_WIDTH = 300
 
 
-def on_page_switch(self, notebook, page, page_num):
+def on_page_switch(self: Any, notebook: Any, page: Any, page_num: int) -> None:
 	if page_num == 1:
 
 		try:
 			self.config = configparser.ConfigParser()
 			self.config.read(paths_factory.config_file_path())
-		except Exception:
+		except (configparser.Error, OSError):
 			print(_("Can't open camera"))
 
 		path = self.config.get("video", "device_path")
@@ -27,12 +30,12 @@ def on_page_switch(self, notebook, page, page_num):
 			# if not self.cv2:
 			import cv2
 			self.cv2 = cv2
-		except Exception:
+		except ImportError:
 			print(_("Can't import OpenCV2"))
 
 		try:
-			self.capture = cv2.VideoCapture(path)
-		except Exception:
+			self.capture = cv2.VideoCapture(path, cv2.CAP_V4L2)
+		except cv2.error:
 			print(_("Can't open camera"))
 
 		opencvbox = self.builder.get_object("opencvbox")
@@ -61,7 +64,7 @@ def on_page_switch(self, notebook, page, page_num):
 		self.capture = None
 
 
-def capture_frame(self):
+def capture_frame(self: Any) -> None:
 	if self.capture is None:
 		return
 

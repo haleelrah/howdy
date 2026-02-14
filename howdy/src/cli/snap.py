@@ -1,14 +1,13 @@
 # Create a snapshot
 
 # Import required modules
-import os
 import configparser
-from datetime import timezone, datetime
-import snapshot
-import paths_factory
-from recorders.video_capture import VideoCapture
+from datetime import datetime, timezone
 
+import paths_factory
+import snapshot
 from i18n import _
+from recorders.video_capture import VideoCapture
 
 # Read the config
 config = configparser.ConfigParser()

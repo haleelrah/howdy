@@ -1,20 +1,23 @@
-import sys
+from __future__ import annotations
+
 import os
 import re
-import time
 import subprocess
-import paths_factory
+import sys
+import time
+from typing import Any
 
-from i18n import _
-
-from gi.repository import Gtk as gtk
 from gi.repository import Gdk as gdk
 from gi.repository import GObject as gobject
+from gi.repository import Gtk as gtk
 from gi.repository import Pango as pango
+
+import paths_factory
+from i18n import _
 
 
 class OnboardingWindow(gtk.Window):
-	def __init__(self):
+	def __init__(self) -> None:
 		"""Initialize the sticky window"""
 		# Make the class a GTK window
 		gtk.Window.__init__(self)
@@ -48,7 +51,7 @@ class OnboardingWindow(gtk.Window):
 		# Start GTK main loop
 		gtk.main()
 
-	def go_next_slide(self, button=None):
+	def go_next_slide(self, button: Any = None) -> None:
 		self.nextbutton.set_sensitive(False)
 
 		self.slides[self.window.current_slide].hide()
@@ -70,7 +73,7 @@ class OnboardingWindow(gtk.Window):
 		elif self.window.current_slide == 6:
 			self.execute_slide6()
 
-	def execute_slide1(self):
+	def execute_slide1(self) -> None:
 		self.downloadoutputlabel = self.builder.get_object("downloadoutputlabel")
 		eventbox = self.builder.get_object("downloadeventbox")
 		eventbox.modify_bg(gtk.StateType.NORMAL, gdk.Color(red=0, green=0, blue=0))
@@ -81,12 +84,12 @@ class OnboardingWindow(gtk.Window):
 			self.enable_next()
 			return
 
-		self.proc = subprocess.Popen("./install.sh", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, cwd=paths_factory.dlib_data_dir_path())
+		self.proc = subprocess.Popen(["./install.sh"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=paths_factory.dlib_data_dir_path())
 
 		self.download_lines = []
 		self.read_download_line()
 
-	def read_download_line(self):
+	def read_download_line(self) -> None:
 		line = self.proc.stdout.readline()
 		self.download_lines.append(line.decode("utf-8"))
 
@@ -109,7 +112,7 @@ class OnboardingWindow(gtk.Window):
 		self.downloadoutputlabel.set_text(_("Done!\nClick Next to continue"))
 		self.enable_next()
 
-	def execute_slide2(self):
+	def execute_slide2(self) -> None:
 		def is_gray(frame):
 			for row in frame:
 				for pixel in row:
@@ -119,34 +122,51 @@ class OnboardingWindow(gtk.Window):
 
 		try:
 			import cv2
-		except Exception:
+		except ImportError:
 			self.show_error(_("Error while importing OpenCV2"), _("Try reinstalling cv2"))
 
 		device_rows = []
+		use_absolute = False
 		try:
 			device_ids = os.listdir("/dev/v4l/by-path")
-		except Exception:
-			self.show_error(_("No webcams found on system"), _("Please configure your camera yourself if you are sure a compatible camera is connected"))
+		except OSError:
+			import glob as _glob
+			video_devs = sorted(_glob.glob("/dev/video*"))
+			if not video_devs:
+				self.show_error(
+					_("No webcams found on system"),
+					_("No V4L2 devices in /dev/v4l/by-path or /dev/video*.\n"
+					  "Please configure your camera manually if a compatible camera is connected.")
+				)
+			device_ids = video_devs
+			use_absolute = True
 
 		# Loop though all devices
 		for dev in device_ids:
 			time.sleep(.5)
 
-			# The full path to the device is the default name
-			device_path = "/dev/v4l/by-path/" + dev
-			device_name = dev
+			if use_absolute:
+				device_path = dev
+				device_name = os.path.basename(dev)
+			else:
+				# The full path to the device is the default name
+				device_path = "/dev/v4l/by-path/" + dev
+				device_name = dev
 
 			# Get the udevadm details to try to get a better name
-			udevadm = subprocess.check_output(["udevadm info -r --query=all -n " + device_path], shell=True).decode("utf-8")
+			try:
+				udevadm = subprocess.check_output(["udevadm", "info", "-r", "--query=all", "-n", device_path]).decode("utf-8")
 
-			# Loop though udevadm to search for a better name
-			for line in udevadm.split("\n"):
-				# Match it and encase it in quotes
-				re_name = re.search('product.*=(.*)$', line, re.IGNORECASE)
-				if re_name:
-					device_name = re_name.group(1)
+				# Loop though udevadm to search for a better name
+				for line in udevadm.split("\n"):
+					# Match it and encase it in quotes
+					re_name = re.search(r'product.*=(.*)$', line, re.IGNORECASE)
+					if re_name:
+						device_name = re_name.group(1)
+			except (subprocess.CalledProcessError, FileNotFoundError):
+				pass
 
-			capture = cv2.VideoCapture(device_path)
+			capture = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
 			is_open, frame = capture.read()
 			if not is_open:
 				device_rows.append([device_name, device_path, -9, _("No, camera can't be opened")])
@@ -195,10 +215,10 @@ class OnboardingWindow(gtk.Window):
 		self.loadinglabel.hide()
 		self.enable_next()
 
-	def execute_slide3(self):
+	def execute_slide3(self) -> None:
 		try:
 			import cv2
-		except Exception:
+		except ImportError:
 			self.show_error(_("Error while importing OpenCV2"), _("Try reinstalling cv2"))
 
 		selection = self.treeview.get_selection()
@@ -213,7 +233,7 @@ class OnboardingWindow(gtk.Window):
 		if is_gray:
 			# test if linux-enable-ir-emitter help should be displayed, 
 			# the user must click on the yes/no button which calls the method slide3_button_yes|no
-			self.capture = cv2.VideoCapture(device_path)
+			self.capture = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
 			if not self.capture.isOpened():
 				self.show_error(_("The selected camera cannot be opened"), _("Try to select another one"))
 			self.capture.read()
@@ -221,17 +241,17 @@ class OnboardingWindow(gtk.Window):
 			# skip, the selected camera is not infrared
 			self.go_next_slide()
 
-	def slide3_button_yes(self, button):
+	def slide3_button_yes(self, button: Any) -> None:
 		self.capture.release()
 		self.go_next_slide()
 
-	def slide3_button_no(self, button):
+	def slide3_button_no(self, button: Any) -> None:
 		self.capture.release()
 		self.builder.get_object("leiestatus").set_markup(_("Please visit\n<a href=\"https://github.com/EmixamPP/linux-enable-ir-emitter\">https://github.com/EmixamPP/linux-enable-ir-emitter</a>\nto enable your ir emitter"))
 		self.builder.get_object("leieyesbutton").hide()
 		self.builder.get_object("leienobutton").hide()
 
-	def execute_slide4(self):
+	def execute_slide4(self) -> None:
 		selection = self.treeview.get_selection()
 		(listmodel, rowlist) = selection.get_selected_rows()
 
@@ -239,12 +259,12 @@ class OnboardingWindow(gtk.Window):
 			self.show_error(_("Error selecting camera"))
 
 		device_path = listmodel.get_value(listmodel.get_iter(rowlist[0]), 2)
-		self.proc = subprocess.Popen("howdy set device_path " + device_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+		self.proc = subprocess.Popen(["howdy", "set", "device_path", device_path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 		self.window.set_focus(self.builder.get_object("scanbutton"))
 
-	def on_scanbutton_click(self, button):
-		status = self.proc.wait(2)
+	def on_scanbutton_click(self, button: Any) -> None:
+		self.proc.wait(2)
 
 		# if status != 0:
 		# 	self.show_error(_("Error setting camera path"), _("Please set the camera path manually"))
@@ -257,8 +277,10 @@ class OnboardingWindow(gtk.Window):
 		# Wait a bit to allow the user to read the dialog
 		gobject.timeout_add(600, self.run_add)
 
-	def run_add(self):
-		status, output = subprocess.getstatusoutput(["howdy add -y"])
+	def run_add(self) -> None:
+		result = subprocess.run(["howdy", "add", "-y"], capture_output=True, text=True)
+		status = result.returncode
+		output = result.stdout + result.stderr
 
 		print("howdy add output:")
 		print(output)
@@ -270,10 +292,10 @@ class OnboardingWindow(gtk.Window):
 
 		gobject.timeout_add(10, self.go_next_slide)
 
-	def execute_slide5(self):
+	def execute_slide5(self) -> None:
 		self.enable_next()
 
-	def execute_slide6(self):
+	def execute_slide6(self) -> None:
 		radio_buttons = self.builder.get_object("radiobalanced").get_group()
 		radio_selected = False
 		radio_certanty = 5.0
@@ -291,7 +313,7 @@ class OnboardingWindow(gtk.Window):
 		elif radio_selected == "radiosecure":
 			radio_certanty = 2.2
 
-		self.proc = subprocess.Popen("howdy set certainty " + str(radio_certanty), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+		self.proc = subprocess.Popen(["howdy", "set", "certainty", str(radio_certanty)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 		self.nextbutton.hide()
 		self.builder.get_object("cancelbutton").hide()
@@ -305,11 +327,11 @@ class OnboardingWindow(gtk.Window):
 		if status != 0:
 			self.show_error(_("Error setting certainty"), _("Certainty is set to the default value, Howdy setup is complete"))
 
-	def enable_next(self):
+	def enable_next(self) -> None:
 		self.nextbutton.set_sensitive(True)
 		self.window.set_focus(self.nextbutton)
 
-	def show_error(self, error, secon=""):
+	def show_error(self, error: str, secon: str = "") -> None:
 		dialog = gtk.MessageDialog(parent=self, flags=gtk.DialogFlags.MODAL, type=gtk.MessageType.ERROR, buttons=gtk.ButtonsType.CLOSE)
 		dialog.set_title(_("Howdy Error"))
 		dialog.props.text = error
@@ -320,7 +342,7 @@ class OnboardingWindow(gtk.Window):
 		dialog.destroy()
 		self.exit()
 
-	def exit(self, widget=None, context=None):
+	def exit(self, widget: Any = None, context: Any = None) -> None:
 		"""Cleanly exit"""
 		gtk.main_quit()
 		sys.exit(0)

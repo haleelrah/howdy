@@ -1,11 +1,14 @@
 # Shows a floating window when authenticating
-import cairo
-import gi
+from __future__ import annotations
+
 import signal
 import sys
-import paths_factory
-import os
+from typing import Any
 
+import cairo
+import gi
+
+import paths_factory
 from i18n import _
 
 # Make sure we have the libs we need
@@ -13,9 +16,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 
 # Import them
-from gi.repository import Gtk as gtk
 from gi.repository import Gdk as gdk
 from gi.repository import GObject as gobject
+from gi.repository import Gtk as gtk
 
 # Set window size constants
 windowWidth = 400
@@ -27,7 +30,7 @@ class StickyWindow(gtk.Window):
 	message = _("Loading...  ")
 	subtext = ""
 
-	def __init__(self):
+	def __init__(self) -> None:
 		"""Initialize the sticky window"""
 		# Make the class a GTK window
 		gtk.Window.__init__(self)
@@ -87,7 +90,7 @@ class StickyWindow(gtk.Window):
 		# Start GTK main loop
 		gtk.main()
 
-	def draw(self, widget, ctx):
+	def draw(self, widget: Any, ctx: cairo.Context) -> None:
 		"""Draw the UI"""
 		# Change cursor to the kill icon
 		self.get_window().set_cursor(gdk.Cursor(gdk.CursorType.PIRATE))
@@ -124,7 +127,7 @@ class StickyWindow(gtk.Window):
 			ctx.select_font_face("Arial", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 			ctx.show_text(self.subtext)
 
-	def catch_stdin(self):
+	def catch_stdin(self) -> None:
 		"""Catch input from stdin and redraw"""
 		# Wait for a line on stdin
 		comm = sys.stdin.readline()[:-1]
@@ -145,7 +148,7 @@ class StickyWindow(gtk.Window):
 		# Fire this function again in 10ms, as we're waiting on IO in readline anyway
 		gobject.timeout_add(10, self.catch_stdin)
 
-	def exit(self, widget, context):
+	def exit(self, widget: Any, context: Any) -> bool:
 		"""Cleanly exit"""
 		gtk.main_quit()
 		return True

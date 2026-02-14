@@ -1,4 +1,5 @@
 # Support file for translations
+from __future__ import annotations
 
 # Import modules
 import gettext

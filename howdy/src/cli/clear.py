@@ -1,11 +1,11 @@
 # Clear all models by deleting the whole file
 
 # Import required modules
+import builtins
 import os
 import sys
-import builtins
-import paths_factory
 
+import paths_factory
 from i18n import _
 
 # Get the passed user
